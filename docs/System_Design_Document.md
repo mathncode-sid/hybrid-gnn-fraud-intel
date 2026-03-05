@@ -26,3 +26,14 @@
 * **[span_17](start_span)Database/Storage:** Neo4j, GraphDB[span_17](end_span).
 * **[span_18](start_span)Infrastructure:** Kafka (Streaming), Docker (Deployment)[span_18](end_span).
 *
+
+## System Modules
+
+* [cite_start]**Data Ingestion Module**: Handles the streaming of real-time transaction data and simulation using Kafka[cite: 250]. This module acts as the entry point for all mobile money traffic.
+* [cite_start]**Graph Construction Module**: Responsible for transforming the data stream into a dynamic, non-homogenous graph stored in Neo4j[cite: 234, 250]. 
+  * [cite_start]**Nodes**: Represents entities like devices, simulated agents, and users (synthetic customers)[cite: 235].
+  * [cite_start]**Edges**: Represents real transaction flows such as P2P transfers, payments, and withdrawals[cite: 236].
+* [cite_start]**GNN Model Module**: Utilizes PyTorch Geometric to learn structural embeddings representing the topology of relational interactions between transactions[cite: 242, 250]. [cite_start]It also incorporates time-sensitive layers to detect burst fraud and fast cash-outs[cite: 245].
+* [cite_start]**ML Classifier Module**: An XGBoost (gradient-boosted tree) tabular classifier trained on engineered features (e.g., transaction velocity)[cite: 246]. [cite_start]It combines its outputs with the deep graph embeddings to compute the final fraud risk score[cite: 247].
+* [cite_start]**API Backend**: Built with FastAPI to handle the core logic, API services, and real-time model inference[cite: 250].
+* [cite_start]**Frontend Dashboard**: A user interface developed using React and Tailwind CSS to display the alert manager, visualize fraud rings, and present actionable insights to analysts[cite: 250].
