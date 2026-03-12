@@ -52,7 +52,7 @@ def train_and_evaluate():
     df['sender_defaulted'] = df['sender_defaulted'].fillna(0)
 
     # Define our features (X) and our target label (y)
-    features = ['amount', 'tx_type_encoded', 'sender_age', 'sender_kyc_encoded']
+    features = [ 'tx_type_encoded', 'sender_age', 'sender_kyc_encoded']
     X = df[features]
     y = df['label']
     
