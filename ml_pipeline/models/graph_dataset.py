@@ -9,7 +9,7 @@ import os
 # === Configuration ===
 URI = "neo4j://localhost:7687"
 # UPDATE WITH YOUR NEO4J PASSWORD HERE!
-AUTH = ("neo4j", "securepassword123") 
+AUTH = ("neo4j", "12345678") 
 DATA_PATH = 'data/processed/hetero_graph.pt'
 os.makedirs('data/processed', exist_ok=True)
 
