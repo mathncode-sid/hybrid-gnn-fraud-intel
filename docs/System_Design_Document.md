@@ -70,3 +70,57 @@ erDiagram
     USER ||--o{ WITHDRAWAL : cashes_out
     USER }o--|| DEVICE : uses
     INSTITUTION ||--o{ LOAN_DISBURSEMENT : issues_to
+
+    week 3 work:
+    # System Setup & Sync Guide (Windows Edition)
+
+Follow these steps strictly in order to get your local environment fully up to speed with the Phase 3 Graph Neural Network pipeline.
+
+
+
+## Step 1: Pull the Latest Code
+Open your VS Code terminal and pull the latest pushed files:
+```bash
+git pull origin main
+
+step 2: Activate your Virtual Environment
+venv\Scripts\activate
+
+step 3:Install Standard Dependancies
+cd backend
+pip install -r requirements.txt
+
+step 4: Install Pytorch and Pytorch Geometric which i will say it is critical guys.
+
+-Because deep learning libraries are massive, we must install them in a specific two-step process for Windows CPU.
+
+run this as first: 
+pip install torch torchvision torchaudio --index-url [https://download.pytorch.org/whl/cpu](https://download.pytorch.org/whl/cpu)
+
+run this second:The graph Add-ons
+pip install torch_geometric pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f [https://data.pyg.org/whl/torch-2.3.0+cpu.html](https://data.pyg.org/whl/torch-2.3.0+cpu.html)
+
+
+⚠️ WINDOWS ERROR WARNING: If the second command gives you a red error saying Could not find a version that satisfies the requirement pyg_lib, IGNORE IT. You successfully installed PyTorch Geometric! Those are optional C++ add-ons that we do not need for this project.
+
+Step 5: Run the Complete Pipeline
+Now that your environment is built, run these scripts in order to generate the data, push it to your local Neo4j database, and extract the PyTorch tensors.
+
+1. Generate Data & Load to Neo4j:
+
+python ml_pipeline/data_gen/generate_data.py
+
+then
+
+python ml_pipeline/graph_builder/neo4j_loader.py
+ 
+ 2. Run the Baseline ML Model (Watch it fail at complex fraud):
+
+ python ml_pipeline/models/xgboost_classifier.py
+
+ 3. Extract the Graph Tensors for Deep Learning:
+
+ python ml_pipeline/models/graph_dataset.py
+
+ If the last script prints "Dataset successfully created and saved!", you are 100% at par and ready to train the Graph Neural Network NA MUWACHE KULALA CARO NA VICTOR!!
+ 
