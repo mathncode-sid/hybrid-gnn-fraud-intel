@@ -124,3 +124,16 @@ python ml_pipeline/graph_builder/neo4j_loader.py
 
  If the last script prints "Dataset successfully created and saved!", you are 100% at par and ready to train the Graph Neural Network NA MUWACHE KULALA CARO NA VICTOR!!
  
+
+ Phase 1 of testing
+
+ pull to the latest changes
+ make sure your Neo4j DB is running and connected.
+ pip -r install requiremnts.txt
+ then after that run:
+ pytest tests/test_pipeline.py -v
+ this to test for:
+1. Data loader function
+2.Feature extraction functions
+3.Graph construction correctness 
+
