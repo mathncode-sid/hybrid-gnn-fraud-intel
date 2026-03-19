@@ -129,7 +129,7 @@ python ml_pipeline/graph_builder/neo4j_loader.py
 
  pull to the latest changes
  make sure your Neo4j DB is running and connected.
- pip -r install requiremnts.txt
+ pip -r install requiremnts.txt or just run pip install pytest
  then after that run:
  pytest tests/test_pipeline.py -v
  this to test for:
