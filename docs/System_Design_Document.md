@@ -137,3 +137,89 @@ python ml_pipeline/graph_builder/neo4j_loader.py
 2.Feature extraction functions
 3.Graph construction correctness 
 
+Now that we have the automated testing working, we need to run the manual tests to  confirm if it makes sense
+Open Neo4j and run this query:
+    MATCH p=(u1:User)-[r:LOAN_DISBURSEMENT]->(u2:User) WHERE r.is_fraud = 1 RETURN p LIMIT 50
+So the Manual check is : Does it actually form a circle? Are there dense connections? If it just looks like a straight line, your data generator logic has a flaw that pytest couldn't catch
+
+Second Test is the Tensor Sanity check. Open a Python Interactive Terminal (jupyter notebook) and look at the raw numbers. Run this code
+    import torch
+    data = torch.load('data/processed/hetero_graph.pt')
+ 
+    # Look at the first 5 users' features
+print(data['user'].x[:5])
+ 
+    # Look at the transaction amounts for the first 5 P2P transfers
+    print(data['user', 'p2p', 'user'].edge_attr[:5])
+Manual check will be: Are the numbers mostly between -3 and 3 (normalized)? If you see numbers like 99999 or NaN, then our feature engineering has a bug.
+
+Third test will be the Edge Case Hunting(Finding impossible scenarios in the Neo4j database)
+1. Visualizing our topology
+Run this command in ne04j query:
+    MATCH p=(u1:User)-[r:P2P_TRANSFER]->(u2:User) WHERE r.is_fraud = 1 RETURN p LIMIT 50
+This should be visualizing the Fraudulent P2P rings. You should see a dense network of fraudsters sending money to each other.(Actual complex topology XGBoost missed)
+
+2. Visualizing Fraudulent Loans
+If you specifically want to see the bad loans being handed out to these fraudsters, we have to start the edge at an Institution node, not a User node. Run this command:
+    MATCH p=(i:Institution)-[r:LOAN_DISBURSEMENT]->(u:User) WHERE r.is_fraud = 1 RETURN p LIMIT 50
+
+The Star Topology: One central node with 10+ nodes pointing perfectly inward or outward (This is the Mule SIM Swap / Fast Cashout).
+The Dense Clusters: A tight web of nodes all aggressively transacting with each other (This is the Synecdoche Circle / Layering topology).
+So this is what pur proposal  clarification.The XGBoost model we trained earlier couldn't see these stars and clusters It just saw flat rows of numbers. The Graph Neural Network (GNN) we are about to build doesn't care about the specific User IDs; it is going to look at these exact pictures and mathematically learn to recognize a "Star" and a "Cluster".
+
+3. Fast Cashout for Withdrawals
+In mobile money, fraudsters rarely keep stolen money in their digital wallets for long. They quickly move it to a rogue Agent to withdraw cash.Run this command to visualize:
+    MATCH p=(u:User)-[r:WITHDRAWAL]->(a:Agent) WHERE r.is_fraud = 1 RETURN p LIMIT 50
+ The query above shows the "sinkholes" where stolen funds exit the system. What to look for is : You should see multiple different Users all withdrawing from the exact same Agent. This visually proves the Agent is complicit in the fraud ring
+
+ 4. Laundering via Till
+ Run this:
+    MATCH p=(u:User)-[r:PAYMENT]->(a:Agent) WHERE r.is_fraud = 1 RETURN p LIMIT 50
+What to look for??Similar to the cashouts, look for a dense cluster of unrelated users all making payments to a single "Agent" node.
+
+5. Reversal scams.
+This is the classic social engineering scam: a fraudster sends money, calls the victim claiming they sent it to the wrong number, convinces the victim to send it back, and then triggers an official reversal to double their money. Run this :
+    MATCH p=(u1:User)-[r:REVERSAL_REQUEST]->(u2:User) WHERE r.is_fraud = 1 RETURN p LIMIT 50
+What to look for?? Isolated pairs of nodes (1-to-1 connections) rather than large clusters, representing individual targeted attacks.
+
+6. Sim Swap Device Ring
+This is the most important query of all. Traditional Machine Learning (like your XGBoost) can  NEVERR see this, but our GNN will. This query doesn't just look at the money; it looks at the  Phones(devices). Run this:
+    MATCH p=(u1:User)-[r1:P2P_TRANSFER {is_fraud: 1}]->(u2:User), (u1)-[r2:USES]->(d:Device) 
+    RETURN p, r2, d LIMIT 50
+What to look for ??? Double-click the nodes to expand them. You will literally see the "Mulot SIM Swap" shape: Multiple different User accounts all connected to a single physical device node This proves that a single fraudster is swapping SIM cards into one phone to run their scam.
+ 
+
+ When we converted our database into PyTorch tensors, we applied mathematical scaling (normalization). If a user's age was accidentally divided by zero, it creates a NaN (Not a Number). A single NaN in your dataset will instantly destroy the Graph Neural Network during training. Check on test if you have tensors.py then run:
+    python tests/test_tensors.py
+Expected results:
+    User Matrix Shape: torch.Size([5999, 4])
+    Any NaNs in Users?: False
+    P2P Amounts Min: -1.4547
+    P2P Amounts Max: 6.1238
+    Any NaNs in Amounts?: False
+Interpretation of the above:
+    Any NaNs: False: This is the biggest hurdle in deep learning. We successfully processed nearly 6,000 users and tens of thousands of features without a single mathematical error (like dividing by zero or missing a value). Our PyTorch tensors are completely clean.
+    P2P Amounts (-1.45 to 6.12): This is beautiful. In the real world, a user might send 50,000 shillings. If you feed the number "50,000" directly into a neural network, the math blows up (this is called the "exploding gradient" problem). Our pipeline successfully applied Z-score normalization, shrinking all the transaction amounts into a tight, manageable mathematical scale centered around zero.
+
+
+Now we do our last test which is trying to break the system. We will have 3 scenarios:
+Free Money Glitch - talks of Did any transaction accidentally get recorded with a negative or zero amount?.Run this to confirm:
+    MATCH ()-[r]->() 
+    WHERE type(r) IN ['P2P_TRANSFER', 'PAYMENT', 'WITHDRAWAL', 'LOAN_DISBURSEMENT'] AND r.amount <= 0 
+    RETURN r LIMIT 10
+
+Rogue user glitch - talks of , In our rules, only Institutions can disburse loans. Did a standard User accidentally become a bank and hand out a loan?Run this:
+    MATCH p=(u:User)-[r:LOAN_DISBURSEMENT]->() 
+    RETURN p LIMIT 10
+
+Ghost Device glitch - This means, Every phone or should belong to a human (User). Are there any floating devices in the database that no one has ever used?Run this:
+    MATCH (d:Device) 
+    WHERE NOT ()-[:USES]->(d) 
+    RETURN d LIMIT 10
+
+In the 3 test, the expected result is: No changes,no records. This proves that the logic and math is okay.
+Now run:
+    python ml_pipeline/models/gnn_embeddings.py
+Everyone will run and get different values but convergence will show you our neural network has just learned the shape.The interpretation means:
+The Convergence:Our Loss started at 0.1401 and smoothly slid all the way down to 0.0172. It didn't bounce around randomly, and it didn't instantly drop to zero. This proves the neural network actually learned the shape of the data steadily over time rather than just memorizing it.
+The Extraction: We successfully bypassed the Black Box problem of Deep Learning. By saving the brain to user_embeddings.csv, we have converted impossible-to-read network topologies into simple rows and columns.
