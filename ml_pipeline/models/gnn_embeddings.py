@@ -108,4 +108,3 @@ embed_df.insert(0, 'user_id', [f"U_{i}" for i in range(len(embed_df))])
 embed_df.to_csv('data/processed/user_embeddings.csv', index=False)
 
 print("Saved User embeddings to data/processed/user_embeddings.csv!")
-print("Week 4 Complete: The graph structure is now a tabular feature!")
