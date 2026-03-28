@@ -67,6 +67,6 @@ for scenario in actual_fraud['Scenario'].unique():
     recall = (caught / total_cases) * 100 if total_cases > 0 else 0.0
     print(f"{scenario:<20} | {caught:<17} | {missed:<18} | {recall:.1f}%")
 
-print("\n--- Overall Performance ---")
+print("\n Overall Performance :")
 print(classification_report(y_test, predictions, target_names=['Safe (0)', 'Fraud (1)']))
 print(f"STACKED ROC-AUC Score: {roc_auc_score(y_test, probabilities):.4f}")
