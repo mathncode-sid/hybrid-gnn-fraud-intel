@@ -223,3 +223,101 @@ Now run:
 Everyone will run and get different values but convergence will show you our neural network has just learned the shape.The interpretation means:
 The Convergence:Our Loss started at 0.1401 and smoothly slid all the way down to 0.0172. It didn't bounce around randomly, and it didn't instantly drop to zero. This proves the neural network actually learned the shape of the data steadily over time rather than just memorizing it.
 The Extraction: We successfully bypassed the Black Box problem of Deep Learning. By saving the brain to user_embeddings.csv, we have converted impossible-to-read network topologies into simple rows and columns.
+
+The system underwent a major revision focused on improving both data representation (features) and model effectiveness (parameters). This involved expanding the feature space to better capture fraud behavior, incorporating more advanced model parameters as advised by supervisors, and ultimately redesigning the dataset. As a result, a new database was created and the previous version was discarded to ensure consistency with the updated architecture.
+
+OUR FINAL DATASET SUMMARY:Fraud-Intel
+Users: 10,000
+Transactions: 100,000
+Agents: 400
+Devices: 5,000
+Fraud Rate: 2.5% (2,500 transactions)
+Time Span: 45 days
+Fraud Types:
+Agent Reversal Rings (25%)
+Mule / SIM Swap (20%)
+Fast Cash-Out (20%)
+Loan Fraud Circles (15%)
+Business Till Fraud (20%)
+
+We are revising the system by expanding features and refining model parameters, creating a new database, and discarding the old one to align with the improved fraud detection design.
+
+Feature Engineering Pipeline
+
+Running:
+python ml_pipeline/features/feature_engineering.py
+Successfully engineering 17 advanced tabular features
+Running:
+python ml_pipeline/features/graph_features.py
+Successfully adding 5 graph topology features using NetworkX (for ring detection signals)
+
+Data Pipeline Execution (New DB).
+Running sequentially:
+python ml_pipeline/data_gen/generate_data.py - Generating 100K transaction dataset (CSV)
+python ml_pipeline/graph_builder/neo4j_loader.py - Loading data into Neo4j graph database.
+python ml_pipeline/features/feature_engineering.py -Computing tabular features
+python ml_pipeline/features/graph_features.py - Computing graph/topological features
+python ml_pipeline/models/graph_dataset.py - Converting processed data into PyTorch tensors
+
+Running Existing Tests
+python tests/test_tensors.py
+python tests/test_pipeline.py -v
+All tests are passing successfully
+User tensor shape: `torch.Size([10000, 13])`
+No NaN values detected
+Fraud labels: 2864 (~2.8%), showing realistic imbalance due to injected fraud patterns
+
+Database Validation (Neo4j)
+MATCH (n) RETURN labels(n) AS NodeType, count(n) AS TotalCount - Counting nodes
+MATCH ()-[r]->() RETURN type(r) AS EdgeType, count(r) AS TotalCount - Counting relationships
+
+Glitch Checks
+Free Money Glitch      
+MATCH ()-[r:P2P_TRANSFER]->() 
+WHERE r.amount <= 0 
+RETURN r LIMIT 10
+Ghost Device
+MATCH (d:Device) 
+WHERE NOT ()-[:USES]->(d) 
+RETURN d LIMIT 10
+Ghost Agent
+MATCH (a:Agent) 
+WHERE NOT ()-[:INTERACTS_WITH]->(a) 
+RETURN a LIMIT 10
+
+Visual Topology Inspection
+Mule / SIM Swap Network
+MATCH (u:User)-[:USES]->(d:Device)
+WITH d, count(u) as user_count
+WHERE user_count > 2
+MATCH path=(users:User)-[:USES]->(d)
+RETURN path LIMIT 50
+
+Fraud Ring
+MATCH p=(u1:User)-[r:P2P_TRANSFER {fraud_scenario: 'fraud_ring'}]->(u2:User)
+RETURN p LIMIT 50
+
+Fast Cashout
+MATCH p=(u1:User)-[r:P2P_TRANSFER {fraud_scenario: 'fast_cashout'}]->(u2:User)
+RETURN p LIMIT 50
+
+ Week 4 Model Testing
+pytest tests/test_gnn.py -v
+-Expect all GNN tests to pass
+
+python baseline_xgboost.py (use correct path)
+
+From this,XGBoost is performing strongly on time/amount-based fraud (fast cashout, business fraud) but is failing to detect network-based fraud patterns like rings and SIM swaps.
+
+GNN Evaluation
+python evaluate_gnn.py (use your correct path)
+GNN is improving recall by capturing hidden network relationships that XGBoost misses, especially in SIM swap and loan fraud.
+However, GNN alone has low precision, making the hybrid (GNN + XGBoost) approach necessary for balanced performance.
+
+Manual Inspection
+python ml_pipeline/models/manual_inspect.py
+GNN is significantly improving detection of relational fraud (SIM swap, loan fraud) by learning network structures.
+However, it struggles with time-based fraud like fast cashout where XGBoost performs better.
+This confirms that combining GNN (for recall) and XGBoost (for precision) is the optimal solution.
+
+Successful tests -Test forward pass, Test embedding dimensions , Test loss computation ,Test inference on small dataset.
