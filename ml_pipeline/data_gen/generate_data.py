@@ -4,7 +4,7 @@ import random
 from datetime import datetime, timedelta
 import os
 
-print("--- Phase 1: Generating Master's-Level Synthetic Dataset ---")
+print(" Phase 1: Generating Master's-Level Synthetic Dataset ")
 
 # 1. GLOBAL SETTINGS (Upgraded per research)
 NUM_USERS = 10000        
