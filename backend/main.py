@@ -4,6 +4,7 @@ from neo4j import GraphDatabase
 import pandas as pd
 import xgboost as xgb
 import pickle # Assuming you saved your XGBoost model as a .pkl file
+import os # <-- Added to fix the pathing issue
 
 #  1. INITIALIZE APP & CONNECTIONS 
 app = FastAPI(title="M-Pesa Fraud Intelligence API", version="1.0")
@@ -14,12 +15,19 @@ AUTH = ("neo4j", "12345678")
 driver = GraphDatabase.driver(URI, auth=AUTH)
 
 # Load the trained Hybrid Meta-Learner (Tier 1)
-# NOTE: Make sure you export your trained model from Week 5 to a .pkl file!
+# --- THE BULLETPROOF PATH FIX ---
+# Dynamically find the absolute path to your main project folder
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Based on your script output, it saved to 'models/saved/hybrid_xgboost.pkl'
+MODEL_PATH = os.path.join(BASE_DIR, "models", "saved", "hybrid_xgboost.pkl")
+
 try:
-    with open("ml_pipeline/models/saved/hybrid_xgboost.pkl", "rb") as f:
+    with open(MODEL_PATH, "rb") as f:
         hybrid_model = pickle.load(f)
+    print(f"✅ SUCCESS: AI Brain loaded from {MODEL_PATH}")
 except FileNotFoundError:
-    print("Warning: Model file not found. API will fail on prediction.")
+    print(f"Warning: Model file not found at {MODEL_PATH}. API will fail on prediction.")
+# --------------------------------
 
 #  2. DEFINE DATA SCHEMAS (Pydantic) 
 # This forces the incoming API requests to have exactly these fields
