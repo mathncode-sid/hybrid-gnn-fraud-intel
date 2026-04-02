@@ -321,3 +321,31 @@ However, it struggles with time-based fraud like fast cashout where XGBoost perf
 This confirms that combining GNN (for recall) and XGBoost (for precision) is the optimal solution.
 
 Successful tests -Test forward pass, Test embedding dimensions , Test loss computation ,Test inference on small dataset.
+
+## CARO HAS PENDING WORK KINDLY REVISIT AND UPDATE THIS BIT.
+
+PHASE 3: INTEGRATION PHASE:
+backend + Model Integration.
+kindly run this :
+Install the required packages:
+   pip install -r requirements.txt
+   Then after that:
+   1. Database Population
+Before running the API, the historical transaction graph must be mapped into Neo4j.
+run:
+# Uploads 100k+ transactions into Neo4j using UNWIND/MERGE batching
+python populate_neo4j.py
+
+2. Start the API Server
+either go to backend - cd backend
+then run uvicorn main:app --reload 
+or
+ uvicorn backend.main:app --reload
+ this 
+ Starts the FastAPI server on [http://127.0.0.1:8000](http://127.0.0.1:8000)
+ Note: The server dynamically locates the hybrid_xgboost.pkl model using absolute OS pathing to ensure stability
+
+ 3. Run Integration Tests
+  Simulates a full Request -> DB -> Model -> Response pipeline
+ run :python tests/test_api.py
+ 

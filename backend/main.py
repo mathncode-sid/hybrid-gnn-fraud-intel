@@ -15,7 +15,6 @@ AUTH = ("neo4j", "12345678")
 driver = GraphDatabase.driver(URI, auth=AUTH)
 
 # Load the trained Hybrid Meta-Learner (Tier 1)
-# --- THE BULLETPROOF PATH FIX ---
 # Dynamically find the absolute path to your main project folder
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Based on your script output, it saved to 'models/saved/hybrid_xgboost.pkl'
@@ -27,7 +26,7 @@ try:
     print(f"✅ SUCCESS: AI Brain loaded from {MODEL_PATH}")
 except FileNotFoundError:
     print(f"Warning: Model file not found at {MODEL_PATH}. API will fail on prediction.")
-# --------------------------------
+
 
 #  2. DEFINE DATA SCHEMAS (Pydantic) 
 # This forces the incoming API requests to have exactly these fields
