@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { ShieldAlert, ShieldCheck, Activity, Search, Upload, BarChart3, Zap } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Activity, Search, Upload, BarChart3, Zap, AlertCircle, CheckCircle, X } from 'lucide-react';
 
 export default function Transactions() {
   // State to hold the form data
@@ -25,91 +25,238 @@ export default function Transactions() {
   const [comparison, setComparison] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [errorDetails, setErrorDetails] = useState(null);
+  const [apiHealthy, setApiHealthy] = useState(true);
 
-  // Handle form input changes
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Validate form inputs before submission
+  const validateFormData = () => {
+    const errors = [];
+    
+    if (!formData.sender_id?.trim()) errors.push('Sender ID is required');
+    if (!formData.receiver_id?.trim()) errors.push('Receiver ID is required');
+    if (isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) 
+      errors.push('Amount must be a positive number');
+    if (isNaN(parseInt(formData.transactions_last_24hr)) || parseInt(formData.transactions_last_24hr) < 0) 
+      errors.push('Transaction count must be non-negative');
+    if (isNaN(parseInt(formData.hour)) || parseInt(formData.hour) < 0 || parseInt(formData.hour) > 23) 
+      errors.push('Hour must be between 0 and 23');
+    
+    return errors;
   };
 
-  // Handle file upload
+  // Parse error response to provide user-friendly messages
+  const parseErrorMessage = (err) => {
+    let message = 'An error occurred';
+    let details = null;
+
+    if (err.response) {
+      // API returned an error response
+      const status = err.response.status;
+      const data = err.response.data;
+
+      if (status === 422) {
+        message = 'Invalid input format. Please check your data.';
+        details = data.detail?.[0]?.msg || JSON.stringify(data.detail);
+      } else if (status === 500) {
+        message = 'Backend server error. Please try again later.';
+        details = data.detail || 'Contact administrator if problem persists';
+      } else if (status === 404) {
+        message = 'API endpoint not found. Backend may not be running.';
+      } else {
+        message = `Server error: ${status}`;
+        details = data.detail || data.message || JSON.stringify(data);
+      }
+    } else if (err.request && !err.response) {
+      // Request was made but no response received
+      message = 'Cannot connect to backend server';
+      details = 'Is FastAPI running on http://127.0.0.1:8000?';
+      setApiHealthy(false);
+    } else if (err.code === 'ECONNABORTED') {
+      message = 'Request timeout. Backend server may be slow or unresponsive.';
+      details = 'Try again or check backend logs';
+    } else if (err.message) {
+      message = err.message;
+    }
+
+    return { message, details };
+  };
+
+  // Handle form input changes with validation
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Validate input as user types
+    if (name === 'hour') {
+      const numValue = parseInt(value);
+      if (value === '' || (numValue >= 0 && numValue <= 23)) {
+        setFormData({ ...formData, [name]: value });
+      }
+    } else if (name === 'transactions_last_24hr' || name === 'amount') {
+      const numValue = parseFloat(value);
+      if (value === '' || numValue >= 0) {
+        setFormData({ ...formData, [name]: value });
+      }
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  // Handle file upload with improved error handling
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validate file type
+    const validTypes = ['text/csv', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    
+    if (!['csv', 'pdf', 'docx', 'doc'].includes(fileExtension)) {
+      setError('Invalid file type. Please upload CSV, PDF, or Word document.');
+      setErrorDetails(`Received: ${file.name} (${file.type || 'unknown type'})`);
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError('File is too large. Maximum size is 10MB.');
+      setErrorDetails(`File size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
 
     const formDataUpload = new FormData();
     formDataUpload.append('file', file);
 
     try {
       setLoading(true);
+      setError(null);
+      setErrorDetails(null);
+      
       const response = await axios.post('http://127.0.0.1:8000/upload-transaction-file', formDataUpload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000 // 30 second timeout
       });
       
+      if (!response.data.transactions || response.data.transactions.length === 0) {
+        setError('No transactions found in file.');
+        setErrorDetails('Please ensure the file contains valid transaction data.');
+        return;
+      }
+      
       setUploadedFile(file.name);
-      setExtractedTransactions(response.data.transactions || []);
-      setError(null);
+      setExtractedTransactions(response.data.transactions);
+      setApiHealthy(true);
     } catch (err) {
-      setError('Failed to parse file. Ensure it\'s a valid CSV, PDF, or Word doc.');
-      console.error(err);
+      const { message, details } = parseErrorMessage(err);
+      setError(message);
+      setErrorDetails(details);
+      console.error('File upload error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Send the transaction to FastAPI with comparison
+  // Send the transaction to FastAPI with comparison and improved error handling
   const handlePredict = async (e) => {
     e.preventDefault();
+    
+    // Validate inputs before sending
+    const validationErrors = validateFormData();
+    if (validationErrors.length > 0) {
+      setError('Please fix the following issues:');
+      setErrorDetails(validationErrors.join(', '));
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
     setPrediction(null);
     setComparison(null);
     
     try {
-      // Get stacked hybrid prediction
-      const hybridResponse = await axios.post('http://127.0.0.1:8000/predict', {
+      const payload = {
         ...formData,
         amount: parseFloat(formData.amount),
         transactions_last_24hr: parseInt(formData.transactions_last_24hr),
         hour: parseInt(formData.hour)
+      };
+
+      // Get stacked hybrid prediction
+      const hybridResponse = await axios.post('http://127.0.0.1:8000/predict', payload, {
+        timeout: 30000
       });
+      
+      if (!hybridResponse.data.risk_score || hybridResponse.data.decision === undefined) {
+        throw new Error('Invalid response format from server');
+      }
+      
       setPrediction(hybridResponse.data);
+      setApiHealthy(true);
 
       // Get model comparison
-      const comparisonResponse = await axios.post('http://127.0.0.1:8000/run-transaction-comparison', {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        transactions_last_24hr: parseInt(formData.transactions_last_24hr),
-        hour: parseInt(formData.hour)
-      });
-      setComparison(comparisonResponse.data);
-      setShowComparison(true);
+      try {
+        const comparisonResponse = await axios.post('http://127.0.0.1:8000/run-transaction-comparison', payload, {
+          timeout: 30000
+        });
+        if (comparisonResponse.data) {
+          setComparison(comparisonResponse.data);
+          setShowComparison(true);
+        }
+      } catch (compErr) {
+        // Show warning if comparison fails but prediction succeeded
+        console.warn('Comparison failed:', compErr);
+        setError('Prediction succeeded but model comparison failed.');
+        setErrorDetails('This is non-critical; your fraud score is still valid.');
+      }
     } catch (err) {
-      console.error(err);
-      setError('Failed to process transaction. Is FastAPI running on port 8000?');
+      const { message, details } = parseErrorMessage(err);
+      setError(message);
+      setErrorDetails(details);
+      console.error('Prediction error:', err);
     }
     setLoading(false);
   };
 
-  // Test selected uploaded transaction through all 3 models
+  // Test selected uploaded transaction through all 3 models with improved error handling
   const handleTestUploadedTransaction = async () => {
-    if (!selectedUploadedTx) return;
+    if (!selectedUploadedTx) {
+      setError('Please select a transaction first.');
+      return;
+    }
     
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
     setUploadedTxComparison(null);
     
     try {
-      // Run through all 3 models
-      const comparisonResponse = await axios.post('http://127.0.0.1:8000/run-transaction-comparison', {
+      // Validate and prepare the transaction data
+      const txData = {
         ...selectedUploadedTx,
         amount: parseFloat(selectedUploadedTx.amount),
         transactions_last_24hr: parseInt(selectedUploadedTx.transactions_last_24hr || 1),
-        hour: parseInt(selectedUploadedTx.hour || 14)
+        hour: parseInt(selectedUploadedTx.hour || 14),
+        transaction_id: selectedUploadedTx.transaction_id || `TXN_${Date.now()}`,
+        sender_id: selectedUploadedTx.sender_id || 'UNKNOWN',
+        receiver_id: selectedUploadedTx.receiver_id || 'UNKNOWN'
+      };
+
+      const comparisonResponse = await axios.post('http://127.0.0.1:8000/run-transaction-comparison', txData, {
+        timeout: 30000
       });
+      
+      if (!comparisonResponse.data) {
+        throw new Error('Empty response from comparison endpoint');
+      }
+      
       setUploadedTxComparison(comparisonResponse.data);
+      setApiHealthy(true);
     } catch (err) {
-      console.error(err);
-      setError('Failed to run models on uploaded transaction.');
+      const { message, details } = parseErrorMessage(err);
+      setError(message);
+      setErrorDetails(details);
+      console.error('Uploaded transaction test error:', err);
     }
     setLoading(false);
   };
@@ -127,12 +274,76 @@ export default function Transactions() {
     return 'text-green-600 bg-green-50';
   };
 
+  // Error display component
+  const ErrorAlert = ({ message, details, onClose, canRetry = false }) => (
+    <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="text-red-600 mt-0.5 flex-shrink-0" size={20} />
+          <div>
+            <p className="font-semibold text-red-900">{message}</p>
+            {details && <p className="text-sm text-red-800 mt-1">{details}</p>}
+            {!apiHealthy && (
+              <button
+                onClick={() => setApiHealthy(true)}
+                className="text-sm text-red-700 underline mt-2 hover:text-red-900"
+              >
+                Check API again
+              </button>
+            )}
+          </div>
+        </div>
+        <button onClick={onClose} className="text-red-600 hover:text-red-900 flex-shrink-0">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+
+  // Success message component
+  const SuccessAlert = ({ message, onClose }) => (
+    <div className="bg-green-50 border border-green-300 rounded-lg p-4 mb-4">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <CheckCircle className="text-green-600 mt-0.5 flex-shrink-0" size={20} />
+          <p className="font-semibold text-green-900">{message}</p>
+        </div>
+        <button onClick={onClose} className="text-green-600 hover:text-green-900 flex-shrink-0">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Live Transaction Monitor</h1>
         <p className="text-gray-600">Simulate transactions, extract from files, and compare all 3 models</p>
       </div>
+
+      {/* GLOBAL ERROR ALERT */}
+      {error && (
+        <ErrorAlert
+          message={error}
+          details={errorDetails}
+          onClose={() => { setError(null); setErrorDetails(null); }}
+          canRetry={true}
+        />
+      )}
+
+      {/* API HEALTH WARNING */}
+      {!apiHealthy && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-yellow-600" size={20} />
+            <div>
+              <p className="font-semibold text-yellow-900">Backend API not responding</p>
+              <p className="text-sm text-yellow-800">Make sure FastAPI is running: <code className="bg-yellow-100 px-2 py-1 rounded text-xs">python backend/main.py</code></p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FILE UPLOAD SECTION */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -141,6 +352,13 @@ export default function Transactions() {
           Extract Transaction Data from File
         </h2>
         
+        {loading && (
+          <div className="mb-4 flex items-center gap-2 text-blue-600">
+            <Activity size={16} className="animate-spin" />
+            <p className="text-sm font-medium">Processing file...</p>
+          </div>
+        )}
+        
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
           <input
             type="file"
@@ -148,18 +366,24 @@ export default function Transactions() {
             onChange={handleFileUpload}
             className="hidden"
             id="file-upload"
+            disabled={loading}
           />
-          <label htmlFor="file-upload" className="cursor-pointer block">
+          <label htmlFor="file-upload" className={`cursor-pointer block ${loading ? 'opacity-50' : ''}`}>
             <Upload size={32} className="mx-auto mb-3 text-gray-400" />
             <p className="text-gray-700 font-medium">Upload CSV, PDF, or Word doc</p>
-            <p className="text-sm text-gray-500 mt-1">Click to browse or drag and drop</p>
+            <p className="text-sm text-gray-500 mt-1">Click to browse or drag and drop (Max 10MB)</p>
           </label>
         </div>
 
         {uploadedFile && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm font-semibold text-blue-900">✓ File uploaded: {uploadedFile}</p>
-            <p className="text-sm text-blue-700">{extractedTransactions.length} records extracted</p>
+          <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="text-green-600" size={18} />
+              <div>
+                <p className="text-sm font-semibold text-green-900">✓ File uploaded: {uploadedFile}</p>
+                <p className="text-sm text-green-700">{extractedTransactions.length} records extracted</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -317,7 +541,6 @@ export default function Transactions() {
               {loading ? 'Running Stacked Hybrid Engine...' : 'Process Transaction & Compare Models'}
             </button>
           </form>
-          {error && <p className="text-red-500 text-sm mt-4 font-medium">{error}</p>}
         </div>
 
         {/* RIGHT COLUMN: The AI Results */}
