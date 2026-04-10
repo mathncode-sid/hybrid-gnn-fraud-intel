@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { BarChart3, Beaker, Zap } from 'lucide-react';
+import { BarChart3, Beaker } from 'lucide-react';
 import ModelComparison from '../components/ModelComparison';
 import TestCaseSampler from '../components/TestCaseSampler';
-import BaselineMetricsPanel from '../components/BaselineMetricsPanel';
 import AIBotButton from '../components/AIBotButton';
 
 export default function Models() {
-  const [expandedSection, setExpandedSection] = useState('baseline');
+  const [expandedSection, setExpandedSection] = useState('comparison');
 
   return (
     <div className="space-y-6">
@@ -17,34 +16,11 @@ export default function Models() {
           Model Comparison & Analysis
         </h1>
         <p className="text-gray-600 mt-2">
-          Compare XGBoost, GNN, and Stacked Hybrid models. Test with 5 fraud scenarios and view static baseline metrics.
+          Compare XGBoost, GNN, and Stacked Hybrid models. Test with 5 fraud scenarios and run live evaluations.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* SECTION 1: BASELINE METRICS (Static Reference) */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-6">
-            <div
-              onClick={() => setExpandedSection(expandedSection === 'baseline' ? null : 'baseline')}
-              className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
-            >
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Zap className="text-yellow-500" size={22} />
-                Baseline Metrics
-              </h2>
-              <p className="text-xs text-gray-500 mt-1">Training-time reference (Static)</p>
-            </div>
-            {(expandedSection === 'baseline' || window.innerWidth > 1024) && (
-              <div className="p-6">
-                <BaselineMetricsPanel />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* SECTION 2 & 3: Model Comparison + Test Sampler (Main Area) */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
           {/* Model Comparison */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-indigo-100">
@@ -91,8 +67,6 @@ export default function Models() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
       {/* Quick Reference Card */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">

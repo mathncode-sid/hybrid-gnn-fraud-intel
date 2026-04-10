@@ -18,9 +18,12 @@ export default function FraudNetwork() {
 
   useEffect(() => {
     if (baselineContainerRef.current && liveContainerRef.current) {
-      const width = baselineContainerRef.current.offsetWidth;
-      const height = baselineContainerRef.current.offsetHeight;
-      setDimensions({ width, height });
+      const baselineWidth = baselineContainerRef.current.offsetWidth;
+      const liveWidth = liveContainerRef.current.offsetWidth;
+      const height = Math.max(baselineContainerRef.current.offsetHeight, liveContainerRef.current.offsetHeight);
+      // Use the width from either container
+      const width = baselineWidth || liveWidth || 600;
+      setDimensions({ width, height: Math.max(height, 500) });
     }
   }, [activeCase]);
 
@@ -209,57 +212,62 @@ export default function FraudNetwork() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto h-[calc(100vh-8rem)] flex flex-col">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* Header with Case Selector */}
-      <div className="mb-6 flex justify-between items-end">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fraud Network Visualization</h1>
-          <p className="text-gray-500">Baseline vs Live Activity Analysis</p>
+      <div className="px-6 pt-6 pb-4 bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <Network className="text-brandPrimary" size={32} />
+              Fraud Network Visualization
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">Baseline vs Live Activity Analysis</p>
+          </div>
+          
+          <div className="flex gap-2 flex-wrap justify-end">
+            {[1, 2, 3, 4, 5].map(num => (
+              <button 
+                key={num}
+                onClick={() => { setSelectedNode(null); setSelectedRelationship(null); setActiveCase(num); }}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap ${
+                  activeCase === num ? 'bg-brandPrimary text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Case {num}
+              </button>
+            ))}
+          </div>
         </div>
-        
-        <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map(num => (
-            <button 
-              key={num}
-              onClick={() => { setSelectedNode(null); setSelectedRelationship(null); setActiveCase(num); }}
-              className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
-                activeCase === num ? 'bg-brandPrimary text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              Case {num}
-            </button>
-          ))}
+
+        {/* Case Description */}
+        <div className={`border p-4 rounded-lg flex items-start gap-3 ${
+          liveData.nodes.length > 0 ? 'bg-blue-50 border-blue-200' : 'bg-indigo-50 border-indigo-100'
+        }`}>
+          <ShieldAlert className={`${liveData.nodes.length > 0 ? 'text-blue-600' : 'text-brandPrimary'} shrink-0 mt-0.5`} size={20} />
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm">{caseStudies[activeCase].title}</h3>
+            <p className="text-sm text-gray-700 mt-1">{caseStudies[activeCase].description}</p>
+          </div>
         </div>
       </div>
 
-      {/* Case Description */}
-      <div className={`border p-4 rounded-t-xl flex items-start gap-3 ${
-        liveData.nodes.length > 0 ? 'bg-blue-50 border-blue-200' : 'bg-indigo-50 border-indigo-100'
-      }`}>
-        <ShieldAlert className={`${liveData.nodes.length > 0 ? 'text-blue-600' : 'text-brandPrimary'} shrink-0 mt-0.5`} size={20} />
-        <div>
-          <h3 className="font-bold text-gray-900 text-sm">{caseStudies[activeCase].title}</h3>
-          <p className="text-sm text-gray-700 mt-1">{caseStudies[activeCase].description}</p>
-        </div>
-      </div>
-
-      {/* Split View: Baseline & Live Graphs */}
-      <div className="flex-1 flex gap-6 bg-white p-6 rounded-b-xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Split View: Baseline & Live Graphs - Full Height */}
+      <div className="flex-1 flex gap-4 p-6 overflow-hidden">
         
         {/* LEFT: Baseline Graph (Static) */}
-        <div className="flex-1 flex flex-col">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-bold text-gray-800 text-sm">BASELINE</h3>
             <span className="text-xs text-gray-500">Theoretical Pattern</span>
           </div>
           <div 
             ref={baselineContainerRef} 
-            className="flex-1 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 cursor-grab active:cursor-grabbing overflow-hidden relative"
+            className="flex-1 cursor-grab active:cursor-grabbing overflow-hidden bg-gray-50 relative"
           >
-            {dimensions.width > 0 && caseStudies[activeCase].data.nodes.length > 0 && (
+            {dimensions.width > 50 && caseStudies[activeCase].data.nodes.length > 0 && (
               <ForceGraph2D
-                width={dimensions.width / 2 - 24}
-                height={dimensions.height - 80}
+                width={dimensions.width}
+                height={dimensions.height}
                 graphData={caseStudies[activeCase].data}
                 nodeCanvasObject={drawNode}
                 linkColor={(link) => getLinkColor(link, false)}
@@ -281,8 +289,8 @@ export default function FraudNetwork() {
         </div>
 
         {/* RIGHT: Live Activity Graph (Animated) */}
-        <div className="flex-1 flex flex-col">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-green-100 border-b border-green-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-gray-800 text-sm">LIVE ACTIVITY</h3>
               {liveData.nodes.length > 0 && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>}
@@ -291,17 +299,17 @@ export default function FraudNetwork() {
           </div>
           <div 
             ref={liveContainerRef} 
-            className="flex-1 border-2 border-dashed border-green-300 rounded-lg bg-green-50 cursor-grab active:cursor-grabbing overflow-hidden relative"
+            className="flex-1 cursor-grab active:cursor-grabbing overflow-hidden bg-green-50 relative"
           >
             {loadingLive && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                 <p className="font-bold text-green-600 animate-pulse">Pulling live transactions...</p>
               </div>
             )}
-            {dimensions.width > 0 && liveData.nodes.length > 0 && (
+            {dimensions.width > 50 && liveData.nodes.length > 0 && (
               <ForceGraph2D
-                width={dimensions.width / 2 - 24}
-                height={dimensions.height - 80}
+                width={dimensions.width}
+                height={dimensions.height}
                 graphData={liveData}
                 nodeCanvasObject={drawNode}
                 linkColor={(link, idx) => {
@@ -332,59 +340,35 @@ export default function FraudNetwork() {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Node/Relationship Intelligence Panel */}
-        <div className="w-80 flex flex-col">
-          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50 flex-1 overflow-y-auto">
-            <h3 className="font-bold text-gray-800 border-b border-gray-200 pb-3 mb-4 flex items-center gap-2">
-              <MousePointer2 size={18} className="text-brandPrimary" /> 
-              {selectedNode ? 'Node Analysis' : selectedRelationship ? 'Relationship Analysis' : 'Select a Node or Edge'}
-            </h3>
-            {selectedNode ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Entity ID</p>
-                  <p className="font-mono text-gray-900 font-medium bg-white px-3 py-2 border rounded-md">{selectedNode.id}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Classification</p>
-                  <span className="px-3 py-1 bg-indigo-100 rounded-full text-xs font-bold text-brandPrimary capitalize">
-                    {selectedNode.group.replace('_', ' ')}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Description</p>
-                  <p className="text-sm text-gray-700">{selectedNode.name}</p>
-                </div>
-              </div>
-            ) : selectedRelationship ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Transaction Flow</p>
-                  <p className="font-mono text-gray-900 font-medium bg-white px-3 py-2 border rounded-md text-xs">
-                    {selectedRelationship.source} → {selectedRelationship.target}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Risk Level</p>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
-                    selectedRelationship.risk === 'high' ? 'bg-red-100 text-red-700' :
-                    selectedRelationship.risk === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-green-100 text-green-700'
-                  }`}>
-                    {selectedRelationship.risk}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                <Network size={40} className="mb-3 opacity-50" />
-                <p className="text-sm text-center px-4">Click a node or edge to inspect details</p>
-              </div>
+      {/* Selected Node/Relationship Info Bar - Bottom */}
+      {(selectedNode || selectedRelationship) && (
+        <div className="px-6 py-4 bg-blue-50 border-t border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <MousePointer2 size={16} className="text-brandPrimary" />
+                {selectedNode ? `Node: ${selectedNode.id}` : selectedRelationship ? `Edge: ${selectedRelationship.source} → ${selectedRelationship.target}` : 'Selection'}
+              </p>
+            </div>
+            {selectedNode && (
+              <span className="px-3 py-1 bg-indigo-100 rounded-full text-xs font-bold text-brandPrimary capitalize">
+                {selectedNode.group.replace('_', ' ')}
+              </span>
+            )}
+            {selectedRelationship && (
+              <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
+                selectedRelationship.risk === 'high' ? 'bg-red-100 text-red-700' :
+                selectedRelationship.risk === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
+              }`}>
+                Risk: {selectedRelationship.risk}
+              </span>
             )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
