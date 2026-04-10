@@ -68,29 +68,30 @@ export default function Models() {
             </div>
           </div>
 
-      {/* Quick Reference Card */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-          <BarChart3 className="text-blue-600" size={20} />
-          Quick Reference: Model Specializations
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg border border-blue-100">
-            <p className="font-semibold text-gray-900">XGBoost</p>
-            <p className="text-sm text-gray-600 mt-1">Best for: Velocity-based fraud, small transactions</p>
-            <p className="text-xs text-gray-500 mt-2">Cases caught: 3/5</p>
+          {/* Quick Reference Card */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <BarChart3 className="text-blue-600" size={20} />
+              Quick Reference: Model Specializations
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-lg border border-blue-100">
+                <p className="font-semibold text-gray-900">XGBoost</p>
+                <p className="text-sm text-gray-600 mt-1">Best for: Velocity-based fraud, small transactions</p>
+                <p className="text-xs text-gray-500 mt-2">Cases caught: 3/5</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border border-purple-100">
+                <p className="font-semibold text-gray-900">GNN</p>
+                <p className="text-sm text-gray-600 mt-1">Best for: Network rings, fraud topology</p>
+                <p className="text-xs text-gray-500 mt-2">Cases caught: 3/5</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border border-green-100">
+                <p className="font-semibold text-gray-900">Stacked Hybrid</p>
+                <p className="text-sm text-gray-600 mt-1">Best for: All fraud types (production choice)</p>
+                <p className="text-xs text-gray-500 mt-2">Cases caught: 5/5</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-white p-4 rounded-lg border border-purple-100">
-            <p className="font-semibold text-gray-900">GNN</p>
-            <p className="text-sm text-gray-600 mt-1">Best for: Network rings, fraud topology</p>
-            <p className="text-xs text-gray-500 mt-2">Cases caught: 3/5</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-green-100">
-            <p className="font-semibold text-gray-900">Stacked Hybrid</p>
-            <p className="text-sm text-gray-600 mt-1">Best for: All fraud types (production choice)</p>
-            <p className="text-xs text-gray-500 mt-2">Cases caught: 5/5</p>
-          </div>
-        </div>
       </div>
     </div>
   );
